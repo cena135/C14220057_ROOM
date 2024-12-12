@@ -5,19 +5,21 @@ import android.os.Bundle
 import android.util.Log
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.SearchView
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.c14220057.room.database.daftarBelanja
 import com.c14220057.room.database.daftarBelanjaDB
+import com.google.android.material.floatingactionbutton.FloatingActionButton
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private lateinit var DB: daftarBelanjaDB
-private lateinit var adpDaftar: adapterDaftar
+lateinit var DB: daftarBelanjaDB
+lateinit var adpDaftar: adapterDaftar
 private var arDaftar: MutableList<daftarBelanja> = mutableListOf()
 
 class MainActivity : AppCompatActivity() {
@@ -50,6 +52,14 @@ class MainActivity : AppCompatActivity() {
         _rvDaftar.layoutManager = LinearLayoutManager(this)
         _rvDaftar.adapter = adpDaftar
 
+        val fabHistory: FloatingActionButton = findViewById(R.id.fabBtnHistory)
+        fabHistory.setOnClickListener {
+            // Navigasi ke halaman HistoryActivity
+            val intent = Intent(this, HistoryActivity::class.java)
+            startActivity(intent)
+        }
+
+
         adpDaftar.setOnItemClickCallback(
             object : adapterDaftar.OnItemClickCallback {
                 override fun delData(dtBelanja: daftarBelanja) {
@@ -60,7 +70,21 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         )
+
+        val _searchView = findViewById<SearchView>(R.id.searchView)
+        _searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
+            override fun onQueryTextSubmit(query: String?): Boolean {
+                query?.let { searchDatabase(it) }
+                return false
+            }
+
+            override fun onQueryTextChange(newText: String?): Boolean {
+                newText?.let { searchDatabase(it) }
+                return false
+            }
+        })
     }
+
 
     override fun onResume() {
         super.onResume()
@@ -75,6 +99,21 @@ class MainActivity : AppCompatActivity() {
         withContext(Dispatchers.Main) {
             Log.d("data ROOM", daftarBelanja.toString())
             adpDaftar.isiData(daftarBelanja)
+        }
+    }
+
+    private fun searchDatabase(query: String) {
+        CoroutineScope(Dispatchers.IO).launch {
+            val daftarBelanja = DB.fundaftarBelanjaDAO()
+                .selectAll()
+                .filter {
+                    it.item?.contains(query, ignoreCase = true) == true ||
+                            it.jumlah?.contains(query, ignoreCase = true) == true
+                }
+
+            withContext(Dispatchers.Main) {
+                adpDaftar.isiData(daftarBelanja)
+            }
         }
     }
 }
